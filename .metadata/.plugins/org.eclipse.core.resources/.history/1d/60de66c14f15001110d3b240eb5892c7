@@ -1,0 +1,16 @@
+package in.ramesh.auth.service;
+
+import in.ramesh.auth.dto.AuthResponse;
+import in.ramesh.auth.dto.LoginRequest;
+import in.ramesh.auth.dto.RegisterRequest;
+
+public interface AuthService {
+	
+	AuthResponse register(RegisterRequest request);
+	
+	AuthResponse login(LoginRequest login);
+	
+	AuthResponse refreshToken(String requestToken);
+	
+	public void logout(String accessToken);
+}

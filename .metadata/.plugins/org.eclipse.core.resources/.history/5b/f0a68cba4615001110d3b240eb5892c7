@@ -1,0 +1,22 @@
+package in.ramesh.auth.entity;
+
+import java.time.Instant;
+
+import jakarta.persistence.Entity;
+import jakarta.persistence.OneToOne;
+import lombok.Getter;
+import lombok.Setter;
+
+@Entity
+@Getter
+@Setter
+public class RefreshToken {
+
+	private Long id;
+	private String token;
+	private Instant expiryDate;
+
+	@OneToOne
+	private User user;
+
+}

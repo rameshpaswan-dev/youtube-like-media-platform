@@ -1,0 +1,175 @@
+package in.ramesh.auth.service;
+
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
+
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+
+import in.ramesh.auth.dto.AuthResponse;
+import in.ramesh.auth.dto.LoginRequest;
+import in.ramesh.auth.dto.RegisterRequest;
+import in.ramesh.auth.dto.Roles;
+import in.ramesh.auth.entity.RefreshToken;
+import in.ramesh.auth.entity.User;
+import in.ramesh.auth.exception.InvalidCredentialsException;
+import in.ramesh.auth.exception.InvalidRefreshTokenException;
+import in.ramesh.auth.exception.UserAlreadyExistsException;
+import in.ramesh.auth.repository.RefreshTokenRepository;
+import in.ramesh.auth.repository.UserRepository;
+import in.ramesh.auth.security.JwtUtil;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class AuthServiceImpl implements AuthService {
+
+    private final UserRepository userRepository;
+    private final RefreshTokenRepository refreshTokenRepository;
+    private final PasswordEncoder encoder;
+    private final JwtUtil jwtUtil;
+    private final RedisTemplate<String, String> redisTemplate;
+
+    /**
+     * Register new user
+     * - Check duplicate email
+     * - Encrypt password
+     * - Save user
+     * - Generate tokens
+     */
+    @Override
+    public AuthResponse register(RegisterRequest request) {
+
+        log.info("Registration attempt for email: {}", request.getEmail());
+
+        if (userRepository.existsByEmail(request.getEmail())) {
+            log.warn("Registration failed - Email already exists: {}", request.getEmail());
+            throw new UserAlreadyExistsException("Email already registered");
+        }
+
+        String userId = UUID.randomUUID().toString();
+
+        User user = User.builder()
+                .userId(userId)
+                .username(request.getUsername())
+                .email(request.getEmail())
+                .role(Roles.USER.name())
+                .password(encoder.encode(request.getPassword()))
+                .build();
+
+        userRepository.save(user);
+
+        log.info("User successfully registered with userId: {}", userId);
+
+        return generateToken(user);
+    }
+
+    /**
+     * Login user
+     * - Validate email
+     * - Match password
+     * - Generate tokens
+     */
+    @Override
+    public AuthResponse login(LoginRequest login) {
+
+        log.info("Login attempt for email: {}", login.getUsername());
+
+        User user = userRepository.findByEmail(login.getUsername())
+                .orElseThrow(() -> {
+                    log.warn("Login failed - Email not found: {}", login.getUsername());
+                    return new InvalidCredentialsException("Invalid email");
+                });
+
+        if (!encoder.matches(login.getPassword(), user.getPassword())) {
+            log.warn("Login failed - Invalid password for email: {}", login.getUsername());
+            throw new InvalidCredentialsException("Invalid password");
+        }
+
+        log.info("Login successful for userId: {}", user.getUserId());
+
+        return generateToken(user);
+    }
+
+    /**
+     * Refresh Access Token
+     * - Validate refresh token
+     * - Check expiry
+     * - Generate new tokens
+     */
+    @Override
+    public AuthResponse refreshToken(String requestToken) {
+
+        log.info("Refresh token request received");
+
+        RefreshToken token = refreshTokenRepository.findByToken(requestToken)
+                .orElseThrow(() -> {
+                    log.warn("Invalid refresh token received");
+                    return new InvalidRefreshTokenException("Invalid refresh token");
+                });
+
+        if (token.getExpiryDate().isBefore(Instant.now())) {
+            log.warn("Expired refresh token for userId: {}", token.getUser().getUserId());
+            refreshTokenRepository.delete(token);
+            throw new InvalidRefreshTokenException("Refresh token expired");
+        }
+
+        log.info("Refresh token valid for userId: {}", token.getUser().getUserId());
+
+        return generateToken(token.getUser());
+    }
+
+    /**
+     * Logout user
+     * - Remove access token from Redis
+     */
+    @Override
+    public void logout(String accessToken) {
+
+        log.info("Logout request received");
+
+        redisTemplate.delete(accessToken);
+
+        log.info("Access token removed from Redis (logout successful)");
+    }
+
+    /**
+     * Generate Access + Refresh Tokens
+     * - Store access token in Redis with TTL
+     * - Store refresh token in DB
+     */
+    private AuthResponse generateToken(User user) {
+
+        String accessToken = jwtUtil.generateAccessToken(user.getEmail());
+        String refreshToken = jwtUtil.generateRefreshToken(user.getEmail());
+
+        // Store access token in Redis with 30 min expiry
+        redisTemplate.opsForValue()
+                .set(accessToken, user.getEmail(), 30, TimeUnit.MINUTES);
+
+        // Remove old refresh tokens for this user (security best practice)
+        refreshTokenRepository.deleteByUser(user);
+
+        RefreshToken token = RefreshToken.builder()
+                .token(refreshToken)
+                .user(user)
+                .expiryDate(Instant.now().plus(7, ChronoUnit.DAYS))
+                .build();
+
+        refreshTokenRepository.save(token);
+
+        log.info("Tokens generated successfully for userId: {}", user.getUserId());
+
+        return AuthResponse.builder()
+                .accessToken(accessToken)
+                .refreshToken(refreshToken)
+                .role(user.getRole())
+                .username(user.getUsername())
+                .build();
+    }
+}

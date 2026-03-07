@@ -1,0 +1,60 @@
+package in.ramesh.auth.service;
+
+import java.util.Collections;
+
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.stereotype.Service;
+
+import in.ramesh.auth.entity.User;
+import in.ramesh.auth.repository.UserRepository;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+/**
+ * Custom implementation of Spring Security UserDetailsService.
+ * 
+ * WHY REQUIRED?
+ * Spring Security uses this to fetch user details from database
+ * during authentication process.
+ */
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class CustomUserDetailsService implements UserDetailsService {
+
+    private final UserRepository userRepository;
+
+    /**
+     * Load user by username/email from database.
+     * 
+     * This method is automatically called by Spring Security.
+     */
+    @Override
+    public UserDetails loadUserByUsername(String username)
+            throws UsernameNotFoundException {
+
+        log.info("Loading user details for username/email: {}", username);
+
+        User user = userRepository.findByEmail(username)
+                .orElseThrow(() -> {
+                    log.warn("User not found with email: {}", username);
+                    return new UsernameNotFoundException("User not found");
+                });
+
+        log.info("User found with userId: {}", user.getUserId());
+
+        return org.springframework.security.core.userdetails.User
+                .builder()
+                .username(user.getEmail())
+                .password(user.getPassword())
+                .authorities(
+                        Collections.singletonList(
+                                new SimpleGrantedAuthority("ROLE_" + user.getRole())
+                        )
+                )
+                .build();
+    }
+}

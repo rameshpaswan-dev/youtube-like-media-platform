@@ -1,0 +1,118 @@
+package in.ramesh.auth.service;
+
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
+
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+
+import in.ramesh.auth.dto.AuthResponse;
+import in.ramesh.auth.dto.LoginRequest;
+import in.ramesh.auth.dto.RegisterRequest;
+import in.ramesh.auth.dto.Roles;
+import in.ramesh.auth.entity.RefreshToken;
+import in.ramesh.auth.entity.User;
+import in.ramesh.auth.exception.UserAlreadyExistsException;
+import in.ramesh.auth.repository.RefreshTokenRepository;
+import in.ramesh.auth.repository.UserRepository;
+import in.ramesh.auth.security.JwtUtil;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class AuthServiceImpl implements AuthService	{
+	
+	private final UserRepository userRepository;
+	
+	private final RefreshTokenRepository refreshTokenRepository;
+	
+	private final PasswordEncoder encoder;
+	
+	private final JwtUtil jwtUtil;
+	
+	private final RedisTemplate<String, String> redisTemplate;
+	
+	
+
+	@Override
+	public AuthResponse register(RegisterRequest request) {
+		 log.info("Register request received for email: {}", request.getEmail());
+
+	        if (userRepository.existsByEmail(request.getEmail())) {
+	            log.warn("Registration failed - Email already exists: {}", request.getEmail());
+	            throw new UserAlreadyExistsException("Email already exists");
+	        }
+	        
+	        String userId = UUID.randomUUID().toString();
+	        
+	        User user = User.builder()
+	        	.userId(userId)
+	        	.username(request.getUsername())
+	        	.email(request.getEmail())
+	        	.role(Roles.USER.toString())
+	        	.password(encoder.encode(request.getPassword()))
+	        	.build();
+	        userRepository.save(user);
+	        log.info("User registered: {}", user.getUsername());
+	        
+		
+		return generateToken(user);
+	}
+
+	@Override
+	public AuthResponse login(LoginRequest login) {
+		User user = userRepository.findByEmail(login.getUsername())
+						.orElseThrow(()->new RuntimeException("Invalid username"));
+		if(!encoder.matches(login.getPassword(), user.getPassword()))){
+			throw new RuntimeException("Invalid password");
+		}
+		 log.info("User logged in: {}", user.getUsername());
+		return generateToken(user);
+	}
+
+	@Override
+	public AuthResponse refreshToken(String requestToken) {
+		
+		RefreshToken token = refreshTokenRepository.findByToken(requestToken)
+				.orElseThrow(()-> new RuntimeException("Invalid Refresh Token"));
+		if(token.getExpiryDate().isBefore(Instant.now())) {
+			throw new RuntimeException("Refresh Token Expired");
+		}
+		
+		return generateToken(token.getUser());
+	}
+
+	@Override
+	public void logout(String accessToken) {
+		
+		redisTemplate.delete(accessToken);
+		 log.info("User logged out");
+		
+	}
+	
+	
+	private AuthResponse generateToken(User user) {
+		String accessToken = jwtUtil.generateAccessToken(user.getEmail());
+		String refreshToken = jwtUtil.generateRefreshToken(user.getEmail());
+		redisTemplate.opsForValue().set(accessToken, user.getEmail(),30,TimeUnit.MINUTES);
+		
+		RefreshToken token = RefreshToken.builder()
+					.token(refreshToken)
+					.user(user)
+					.expiryDate(Instant.now().plus(7,ChronoUnit.DAYS))
+					.build();
+		refreshTokenRepository.save(token);
+		return AuthResponse.builder()
+							.accessToken(accessToken)
+							.refreshToken(refreshToken)
+							.role(user.getRole())
+							.username(user.getUsername())
+							.build();
+	}
+
+}

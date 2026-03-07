@@ -1,0 +1,29 @@
+package in.ramesh.auth.controller;
+
+import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.Map;
+
+import org.apache.hc.core5.http.HttpStatus;
+import org.springframework.cglib.core.Local;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+
+import in.ramesh.auth.exception.UserAlreadyExistsException;
+import lombok.extern.slf4j.Slf4j;
+
+@RestControllerAdvice
+@Slf4j
+public class GlobalExceptionHandler {
+	
+	public ResponseEntity<?> handleUserAlreadyExists(UserAlreadyExistsException ex){
+		log.warn("Login failed: {}",ex.getMessage());
+		return build
+	}
+	
+	
+	private ResponseEntity<?> buildResponse(String message, HttpStatus status){
+		Map<String, Object> body = new HashMap<>();
+		body.put("timestamp", LocalDateTime.now())
+	}
+}

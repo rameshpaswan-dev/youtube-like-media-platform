@@ -1,0 +1,74 @@
+package in.ramesh.auth.util;
+
+public class AppConstants {
+
+}
+package in.ramesh.auth.util;
+
+/**
+ * Centralized application constants.
+ * 
+ * WHY?
+ * - Avoid hardcoded strings
+ * - Improve maintainability
+ * - Easy future changes
+ * - Production best practice
+ */
+public final class AppConstants {
+
+    private AppConstants() {
+        // Prevent instantiation
+    }
+
+    /* ===============================
+       JWT CONSTANTS
+    ================================= */
+
+    public static final String AUTH_HEADER = "Authorization";
+    public static final String TOKEN_PREFIX = "Bearer ";
+    public static final String TOKEN_TYPE = "JWT";
+
+    public static final String JWT_CLAIM_ROLE = "role";
+
+    public static final long ACCESS_TOKEN_EXPIRATION = 30 * 60 * 1000; // 30 min
+    public static final long REFRESH_TOKEN_EXPIRATION = 7 * 24 * 60 * 60 * 1000; // 7 days
+
+
+    /* ===============================
+       REDIS CONSTANTS
+    ================================= */
+
+    public static final String REDIS_TOKEN_PREFIX = "AUTH:TOKEN:";
+    public static final long REDIS_ACCESS_TOKEN_TTL = 30; // minutes
+
+
+    /* ===============================
+       ROLE CONSTANTS
+    ================================= */
+
+    public static final String ROLE_USER = "USER";
+    public static final String ROLE_ADMIN = "ADMIN";
+
+
+    /* ===============================
+       ERROR MESSAGES
+    ================================= */
+
+    public static final String USER_ALREADY_EXISTS = "User already exists";
+    public static final String INVALID_CREDENTIALS = "Invalid username or password";
+    public static final String INVALID_REFRESH_TOKEN = "Invalid refresh token";
+    public static final String REFRESH_TOKEN_EXPIRED = "Refresh token expired";
+    public static final String INTERNAL_SERVER_ERROR = "Something went wrong";
+
+
+    /* ===============================
+       LOG MESSAGES
+    ================================= */
+
+    public static final String LOG_USER_REGISTERED = "User successfully registered";
+    public static final String LOG_USER_LOGIN_SUCCESS = "User login successful";
+    public static final String LOG_USER_LOGIN_FAILED = "User login failed";
+    public static final String LOG_TOKEN_GENERATED = "JWT tokens generated";
+    public static final String LOG_LOGOUT_SUCCESS = "User logout successful";
+
+}

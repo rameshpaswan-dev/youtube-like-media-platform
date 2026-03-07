@@ -1,0 +1,68 @@
+package in.ramesh.auth.controller;
+
+import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.Map;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+
+import in.ramesh.auth.exception.InvalidCredentialsException;
+import in.ramesh.auth.exception.UserAlreadyExistsException;
+import lombok.extern.slf4j.Slf4j;
+
+@RestControllerAdvice
+@Slf4j
+public class GlobalExceptionHandler {
+	
+	@ExceptionHandler(UserAlreadyExistsException.class)
+	public ResponseEntity<?> handleUserAlreadyExists(UserAlreadyExistsException ex){
+		log.warn("Login failed: {}",ex.getMessage());
+		return buildResponse(ex.getMessage(), HttpStatus.CONFLICT);
+	}
+	
+	
+	@ExceptionHandler(InvalidCredentialsException.class)
+	public ResponseEntity<?> handleInvalidCredentials(InvalidCredentialsException ex){
+		log.warn("login failed: {}",ex.getMessage());
+		return buildResponse(ex.getMessage(), HttpStatus.UNAUTHORIZED);
+	}
+	
+	@ExceptionHandler(InvalidRefreshTokenException.class)
+    public ResponseEntity<?> handleInvalidRefresh(InvalidRefreshTokenException ex) {
+
+        log.warn("Refresh token error: {}", ex.getMessage());
+
+        return buildResponse(ex.getMessage(), HttpStatus.UNAUTHORIZED);
+    }
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<?> handleValidation(MethodArgumentNotValidException ex) {
+
+        log.warn("Validation failed: {}", ex.getMessage());
+
+        return buildResponse("Validation Failed", HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<?> handleGeneric(Exception ex) {
+
+        log.error("Unexpected error occurred", ex);
+
+        return buildResponse("Something went wrong", HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
+	
+	
+	private ResponseEntity<?> buildResponse(String message, HttpStatus status){
+		Map<String, Object> body = new HashMap<>();
+		body.put("timestamp", LocalDateTime.now());
+		body.put("status",status.value());
+		body.put("message", message);
+		return new ResponseEntity<>(body,status);
+		
+		
+	}
+}

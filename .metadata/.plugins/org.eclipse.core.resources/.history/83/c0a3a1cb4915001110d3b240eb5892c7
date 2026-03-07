@@ -1,0 +1,55 @@
+package in.ramesh.auth.security;
+
+import java.nio.charset.StandardCharsets;
+import java.util.Date;
+
+import javax.crypto.SecretKey;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
+
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.security.Keys;
+
+@Component
+public class JwtUtil {
+	
+	@Value("${jwt.seret}")
+	private String secret_key;
+	
+	@Value("${jwt.access-expiration}")
+	private Long accessExpiration;
+	
+	
+	public String generateAccessToken(String username) {
+		return buildToken(username,accessExpiration);
+	
+	}
+	
+	
+	public String generateRefreshToken(String username) {
+		return buildToken(username, 7 * 24 * 60 * 60 * 1000); // 7 days
+	}
+	
+	
+	private String buildToken(String username, long expiration) {
+		SecretKey key = Keys.hmacShaKeyFor(secret_key.getBytes(StandardCharsets.UTF_8));
+		return Jwts.builder()
+				.setSubject(username)
+				.setIssuedAt(new Date())
+				.setExpiration(new Date(System.currentTimeMillis()+expiration))
+				.signWith(key,SignatureAlgorithm.HS256)
+				.compact();
+	}
+	
+	public String extractUsername(String token) {
+		SecretKey key = Keys.hmacShaKeyFor(secret_key.getBytes(StandardCharsets.UTF_8));
+		return Jwts.parserBuilder()
+				.setSigningKey(key)
+				.build()
+				.parseClaimsJws(token)
+				.getBody()
+				.getSubject();
+	}
+}

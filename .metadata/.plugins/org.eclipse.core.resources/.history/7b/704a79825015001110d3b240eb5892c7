@@ -1,0 +1,5 @@
+package in.ramesh.auth.exception;
+
+public class InvalidTokenException {
+
+}

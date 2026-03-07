@@ -1,0 +1,29 @@
+package in.ramesh.auth.security;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
+
+import io.jsonwebtoken.Jwts;
+
+@Component
+public class JwtUtil {
+	
+	@Value("${jwt.seret}")
+	private String secret_key;
+	
+	@Value("${jwt.access-expiration}")
+	private Long accessExpiration;
+	
+	public String generateAccessToken(String username) {
+		return buildToken(username,accessExpiration);
+	
+	}
+	
+	public String generateRefreshToken(String username) {
+		return buildToken(username,7 * 24 * 60 * 60 * 1000); // 7 days
+	}
+	
+	private String buildToken(String username,Long expiration) {
+		return Jwts.builder().compact();
+	}
+}

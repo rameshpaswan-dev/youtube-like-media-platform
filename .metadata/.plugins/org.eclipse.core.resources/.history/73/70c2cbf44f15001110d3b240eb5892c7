@@ -1,0 +1,62 @@
+package in.ramesh.auth.service;
+
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+
+import in.ramesh.auth.dto.AuthResponse;
+import in.ramesh.auth.dto.LoginRequest;
+import in.ramesh.auth.dto.RegisterRequest;
+import in.ramesh.auth.exception.UserAlreadyExistsException;
+import in.ramesh.auth.repository.RefreshTokenRepository;
+import in.ramesh.auth.repository.UserRepository;
+import in.ramesh.auth.security.JwtUtil;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class AuthServiceImpl implements AuthService	{
+	
+	private final UserRepository userRepository;
+	
+	private final RefreshTokenRepository refreshTokenRepository;
+	
+	private final PasswordEncoder passwordEncoder;
+	
+	private final JwtUtil jwtUtil;
+	
+	private final RedisTemplate<String, String> redisTemplate;
+	
+	
+
+	@Override
+	public AuthResponse register(RegisterRequest request) {
+		
+		if(userRepository.existsByEmail(request.getEmail())) {
+			throw new UserAlreadyExistsException("Email already exists");	
+		}
+		
+		return null;
+	}
+
+	@Override
+	public AuthResponse login(LoginRequest login) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public AuthResponse refreshToken(String requestToken) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public void logout(String accessToken) {
+		// TODO Auto-generated method stub
+		
+	}
+
+}
